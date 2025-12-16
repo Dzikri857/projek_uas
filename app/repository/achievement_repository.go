@@ -5,13 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"projek_uas/database"
-	"projek_uas/model"
+	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"projek_uas/database"
+	"projek_uas/helper"
+	"projek_uas/app/model"
 )
 
 type AchievementRepository struct{}
@@ -549,4 +552,119 @@ func (r *AchievementRepository) HandleStatistics(userID, roleName string, studen
 	}
 
 	return r.GetStatistics(studentIDs)
+}
+
+func (r *AchievementRepository) HandleCreateHTTP(c *fiber.Ctx, studentRepo *StudentRepository) error {
+	userID := c.Locals("userID").(string)
+
+	var req model.CreateAchievementRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	achievement, err := r.HandleCreate(userID, &req, studentRepo)
+	if err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "Achievement created successfully", achievement)
+}
+
+func (r *AchievementRepository) HandleGetAllHTTP(c *fiber.Ctx, studentRepo *StudentRepository, lecturerRepo *LecturerRepository) error {
+	userID := c.Locals("userID").(string)
+	roleName := c.Locals("roleName").(string)
+	status := c.Query("status", "")
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+
+	achievements, pagination, err := r.HandleGetAll(userID, roleName, status, page, limit, studentRepo, lecturerRepo)
+	if err != nil {
+		return helper.ErrorResponse(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return helper.PaginatedResponse(c, achievements, *pagination)
+}
+
+func (r *AchievementRepository) HandleGetByIDHTTP(c *fiber.Ctx, studentRepo *StudentRepository, lecturerRepo *LecturerRepository) error {
+	id := c.Params("id")
+	userID := c.Locals("userID").(string)
+	roleName := c.Locals("roleName").(string)
+
+	achievement, err := r.HandleGetByID(id, userID, roleName, studentRepo, lecturerRepo)
+	if err != nil {
+		return helper.ErrorResponse(c, fiber.StatusNotFound, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "Achievement retrieved", achievement)
+}
+
+func (r *AchievementRepository) HandleUpdateHTTP(c *fiber.Ctx, studentRepo *StudentRepository) error {
+	id := c.Params("id")
+	userID := c.Locals("userID").(string)
+
+	var req model.UpdateAchievementRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	if err := r.HandleUpdate(id, userID, &req, studentRepo); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "Achievement updated successfully", nil)
+}
+
+func (r *AchievementRepository) HandleDeleteHTTP(c *fiber.Ctx, studentRepo *StudentRepository) error {
+	id := c.Params("id")
+	userID := c.Locals("userID").(string)
+
+	if err := r.HandleDelete(id, userID, studentRepo); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "Achievement deleted successfully", nil)
+}
+
+func (r *AchievementRepository) HandleSubmitHTTP(c *fiber.Ctx, studentRepo *StudentRepository) error {
+	id := c.Params("id")
+	userID := c.Locals("userID").(string)
+
+	if err := r.HandleSubmit(id, userID, studentRepo); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "Achievement submitted for verification", nil)
+}
+
+func (r *AchievementRepository) HandleVerifyHTTP(c *fiber.Ctx) error {
+	id := c.Params("id")
+	userID := c.Locals("userID").(string)
+
+	var req model.VerifyAchievementRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	if err := r.HandleVerify(id, userID, &req); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	message := "Achievement verified successfully"
+	if req.Action == "reject" {
+		message = "Achievement rejected"
+	}
+
+	return helper.SuccessResponse(c, message, nil)
+}
+
+func (r *AchievementRepository) HandleStatisticsHTTP(c *fiber.Ctx, studentRepo *StudentRepository, lecturerRepo *LecturerRepository) error {
+	userID := c.Locals("userID").(string)
+	roleName := c.Locals("roleName").(string)
+
+	stats, err := r.HandleStatistics(userID, roleName, studentRepo, lecturerRepo)
+	if err != nil {
+		return helper.ErrorResponse(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "Statistics retrieved", stats)
 }

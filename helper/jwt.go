@@ -2,8 +2,8 @@ package helper
 
 import (
 	"errors"
+	"projek_uas/app/model"
 	"projek_uas/config"
-	"projek_uas/model"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"

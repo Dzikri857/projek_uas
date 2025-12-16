@@ -3,10 +3,13 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"strconv"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
 	"projek_uas/database"
 	"projek_uas/helper"
-	"projek_uas/model"
-	"time"
+	"projek_uas/app/model"
 )
 
 type UserRepository struct{}
@@ -258,4 +261,66 @@ func (r *UserRepository) HandleDelete(id string) error {
 	}
 
 	return r.Delete(id)
+}
+
+func (r *UserRepository) HandleCreateHTTP(c *fiber.Ctx, studentRepo *StudentRepository, lecturerRepo *LecturerRepository) error {
+	var req model.CreateUserRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	user, err := r.HandleCreate(&req, studentRepo, lecturerRepo)
+	if err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "User created successfully", user)
+}
+
+func (r *UserRepository) HandleGetAllHTTP(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+
+	users, pagination, err := r.HandleGetAll(page, limit)
+	if err != nil {
+		return helper.ErrorResponse(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return helper.PaginatedResponse(c, users, *pagination)
+}
+
+func (r *UserRepository) HandleGetByIDHTTP(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	user, err := r.FindByID(id)
+	if err != nil {
+		return helper.ErrorResponse(c, fiber.StatusNotFound, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "User retrieved", user)
+}
+
+func (r *UserRepository) HandleUpdateHTTP(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	var req model.UpdateUserRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	if err := r.HandleUpdate(id, &req); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "User updated successfully", nil)
+}
+
+func (r *UserRepository) HandleDeleteHTTP(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	if err := r.HandleDelete(id); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "User deleted successfully", nil)
 }

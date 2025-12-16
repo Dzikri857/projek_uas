@@ -2,25 +2,19 @@ package service
 
 import (
 	"errors"
-	"projek_uas/app/model"
-	"projek_uas/app/repository"
-	"projek_uas/helper"
-	"strconv"
-
-	"github.com/gofiber/fiber/v2"
+	"projek_uas/model"
+	"projek_uas/repository"
 )
 
 type AchievementService struct {
 	achievementRepo *repository.AchievementRepository
 	studentRepo     *repository.StudentRepository
-	lecturerRepo    *repository.LecturerRepository
 }
 
-func NewAchievementService(achievementRepo *repository.AchievementRepository, studentRepo *repository.StudentRepository, lecturerRepo *repository.LecturerRepository) *AchievementService {
+func NewAchievementService(achievementRepo *repository.AchievementRepository, studentRepo *repository.StudentRepository) *AchievementService {
 	return &AchievementService{
 		achievementRepo: achievementRepo,
 		studentRepo:     studentRepo,
-		lecturerRepo:    lecturerRepo,
 	}
 }
 
@@ -79,7 +73,7 @@ func (s *AchievementService) GetAchievements(userID, roleName string, status str
 			studentIDs = []string{student.ID}
 		}
 	} else if roleName == "Dosen Wali" {
-		lecturer, err := s.lecturerRepo.FindByUserID(userID)
+		lecturer, err := repository.NewLecturerRepository().FindByUserID(userID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -139,7 +133,7 @@ func (s *AchievementService) GetAchievementByID(id, userID, roleName string) (*m
 			return nil, errors.New("unauthorized")
 		}
 	} else if roleName == "Dosen Wali" {
-		lecturer, err := s.lecturerRepo.FindByUserID(userID)
+		lecturer, err := repository.NewLecturerRepository().FindByUserID(userID)
 		if err != nil {
 			return nil, err
 		}
@@ -296,7 +290,7 @@ func (s *AchievementService) GetStatistics(userID, roleName string) (map[string]
 			studentIDs = []string{student.ID}
 		}
 	} else if roleName == "Dosen Wali" {
-		lecturer, err := s.lecturerRepo.FindByUserID(userID)
+		lecturer, err := repository.NewLecturerRepository().FindByUserID(userID)
 		if err != nil {
 			return nil, err
 		}
@@ -310,119 +304,4 @@ func (s *AchievementService) GetStatistics(userID, roleName string) (map[string]
 	}
 
 	return s.achievementRepo.GetStatistics(studentIDs)
-}
-
-func (s *AchievementService) HandleCreateAchievement(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
-
-	var req model.CreateAchievementRequest
-	if err := c.BodyParser(&req); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
-	}
-
-	achievement, err := s.CreateAchievement(userID, &req)
-	if err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "Achievement created successfully", achievement)
-}
-
-func (s *AchievementService) HandleGetAchievements(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
-	roleName := c.Locals("roleName").(string)
-	status := c.Query("status", "")
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	limit, _ := strconv.Atoi(c.Query("limit", "10"))
-
-	achievements, pagination, err := s.GetAchievements(userID, roleName, status, page, limit)
-	if err != nil {
-		return helper.ErrorResponse(c, fiber.StatusInternalServerError, err.Error())
-	}
-
-	return helper.PaginatedResponse(c, achievements, *pagination)
-}
-
-func (s *AchievementService) HandleGetAchievementByID(c *fiber.Ctx) error {
-	id := c.Params("id")
-	userID := c.Locals("userID").(string)
-	roleName := c.Locals("roleName").(string)
-
-	achievement, err := s.GetAchievementByID(id, userID, roleName)
-	if err != nil {
-		return helper.ErrorResponse(c, fiber.StatusNotFound, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "Achievement retrieved", achievement)
-}
-
-func (s *AchievementService) HandleUpdateAchievement(c *fiber.Ctx) error {
-	id := c.Params("id")
-	userID := c.Locals("userID").(string)
-
-	var req model.UpdateAchievementRequest
-	if err := c.BodyParser(&req); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
-	}
-
-	if err := s.UpdateAchievement(id, userID, &req); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "Achievement updated successfully", nil)
-}
-
-func (s *AchievementService) HandleDeleteAchievement(c *fiber.Ctx) error {
-	id := c.Params("id")
-	userID := c.Locals("userID").(string)
-
-	if err := s.DeleteAchievement(id, userID); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "Achievement deleted successfully", nil)
-}
-
-func (s *AchievementService) HandleSubmitForVerification(c *fiber.Ctx) error {
-	id := c.Params("id")
-	userID := c.Locals("userID").(string)
-
-	if err := s.SubmitForVerification(id, userID); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "Achievement submitted for verification", nil)
-}
-
-func (s *AchievementService) HandleVerifyAchievement(c *fiber.Ctx) error {
-	id := c.Params("id")
-	userID := c.Locals("userID").(string)
-
-	var req model.VerifyAchievementRequest
-	if err := c.BodyParser(&req); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
-	}
-
-	if err := s.VerifyAchievement(id, userID, &req); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	message := "Achievement verified successfully"
-	if req.Action == "reject" {
-		message = "Achievement rejected"
-	}
-
-	return helper.SuccessResponse(c, message, nil)
-}
-
-func (s *AchievementService) HandleGetStatistics(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
-	roleName := c.Locals("roleName").(string)
-
-	stats, err := s.GetStatistics(userID, roleName)
-	if err != nil {
-		return helper.ErrorResponse(c, fiber.StatusInternalServerError, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "Statistics retrieved", stats)
 }

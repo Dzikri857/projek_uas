@@ -1,7 +1,7 @@
 package helper
 
 import (
-	"projek_uas/model"
+	"projek_uas/app/model"
 
 	"github.com/gofiber/fiber/v2"
 )

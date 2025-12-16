@@ -10,9 +10,7 @@ require (
 	github.com/lib/pq v1.10.9
 	go.mongodb.org/mongo-driver v1.13.1
 	golang.org/x/crypto v0.31.0
-)
-
-require (
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect

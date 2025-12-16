@@ -2,12 +2,9 @@ package service
 
 import (
 	"errors"
-	"projek_uas/app/model"
-	"projek_uas/app/repository"
 	"projek_uas/helper"
-	"strconv"
-
-	"github.com/gofiber/fiber/v2"
+	"projek_uas/model"
+	"projek_uas/repository"
 )
 
 type UserService struct {
@@ -137,66 +134,4 @@ func (s *UserService) DeleteUser(id string) error {
 	}
 
 	return s.userRepo.Delete(id)
-}
-
-func (s *UserService) HandleCreateUser(c *fiber.Ctx) error {
-	var req model.CreateUserRequest
-	if err := c.BodyParser(&req); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
-	}
-
-	user, err := s.CreateUser(&req)
-	if err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "User created successfully", user)
-}
-
-func (s *UserService) HandleGetUsers(c *fiber.Ctx) error {
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	limit, _ := strconv.Atoi(c.Query("limit", "10"))
-
-	users, pagination, err := s.GetUsers(page, limit)
-	if err != nil {
-		return helper.ErrorResponse(c, fiber.StatusInternalServerError, err.Error())
-	}
-
-	return helper.PaginatedResponse(c, users, *pagination)
-}
-
-func (s *UserService) HandleGetUserByID(c *fiber.Ctx) error {
-	id := c.Params("id")
-
-	user, err := s.GetUserByID(id)
-	if err != nil {
-		return helper.ErrorResponse(c, fiber.StatusNotFound, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "User retrieved", user)
-}
-
-func (s *UserService) HandleUpdateUser(c *fiber.Ctx) error {
-	id := c.Params("id")
-
-	var req model.UpdateUserRequest
-	if err := c.BodyParser(&req); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
-	}
-
-	if err := s.UpdateUser(id, &req); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "User updated successfully", nil)
-}
-
-func (s *UserService) HandleDeleteUser(c *fiber.Ctx) error {
-	id := c.Params("id")
-
-	if err := s.DeleteUser(id); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	return helper.SuccessResponse(c, "User deleted successfully", nil)
 }

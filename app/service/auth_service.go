@@ -2,11 +2,10 @@ package service
 
 import (
 	"errors"
-	"projek_uas/app/model"
-	"projek_uas/app/repository"
 	"projek_uas/config"
 	"projek_uas/helper"
-
+	"projek_uas/app/model"
+	"projek_uas/app/repository"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -122,13 +121,29 @@ func (s *AuthService) RefreshToken(oldRefreshToken string) (*model.LoginResponse
 	}, nil
 }
 
-func (s *AuthService) HandleLogin(c *fiber.Ctx) error {
+func (s *AuthService) HandleLogin(req *model.LoginRequest) (*model.LoginResponse, error) {
+	return s.Login(req)
+}
+
+func (s *AuthService) HandleGetProfile(userID string) (*model.User, error) {
+	return s.GetProfile(userID)
+}
+
+func (s *AuthService) HandleRefreshToken(refreshToken string) (*model.LoginResponse, error) {
+	return s.RefreshToken(refreshToken)
+}
+
+func (s *AuthService) HandleLogout() error {
+	return nil
+}
+
+func (s *AuthService) HandleLoginHTTP(c *fiber.Ctx) error {
 	var req model.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
 		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	resp, err := s.Login(&req)
+	resp, err := s.HandleLogin(&req)
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusUnauthorized, err.Error())
 	}
@@ -136,10 +151,10 @@ func (s *AuthService) HandleLogin(c *fiber.Ctx) error {
 	return helper.SuccessResponse(c, "Login successful", resp)
 }
 
-func (s *AuthService) HandleGetProfile(c *fiber.Ctx) error {
+func (s *AuthService) HandleGetProfileHTTP(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
 
-	user, err := s.GetProfile(userID)
+	user, err := s.HandleGetProfile(userID)
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusNotFound, err.Error())
 	}
@@ -147,13 +162,13 @@ func (s *AuthService) HandleGetProfile(c *fiber.Ctx) error {
 	return helper.SuccessResponse(c, "Profile retrieved", user)
 }
 
-func (s *AuthService) HandleRefreshToken(c *fiber.Ctx) error {
+func (s *AuthService) HandleRefreshTokenHTTP(c *fiber.Ctx) error {
 	var req model.RefreshTokenRequest
 	if err := c.BodyParser(&req); err != nil {
 		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	resp, err := s.RefreshToken(req.RefreshToken)
+	resp, err := s.HandleRefreshToken(req.RefreshToken)
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusUnauthorized, err.Error())
 	}
@@ -161,6 +176,9 @@ func (s *AuthService) HandleRefreshToken(c *fiber.Ctx) error {
 	return helper.SuccessResponse(c, "Token refreshed", resp)
 }
 
-func (s *AuthService) HandleLogout(c *fiber.Ctx) error {
+func (s *AuthService) HandleLogoutHTTP(c *fiber.Ctx) error {
+	if err := s.HandleLogout(); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusInternalServerError, err.Error())
+	}
 	return helper.SuccessResponse(c, "Logout successful", nil)
 }
