@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"projek_uas/config"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -13,11 +12,11 @@ import (
 
 var MongoDB *mongo.Database
 
-func ConnectMongoDB(cfg *config.Config) error {
+func ConnectMongoDB(uri, dbname string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDB.URI))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
 		return fmt.Errorf("failed to connect to mongodb: %w", err)
 	}
@@ -26,7 +25,7 @@ func ConnectMongoDB(cfg *config.Config) error {
 		return fmt.Errorf("failed to ping mongodb: %w", err)
 	}
 
-	MongoDB = client.Database(cfg.MongoDB.Database)
+	MongoDB = client.Database(dbname)
 	log.Println("Connected to MongoDB")
 
 	return nil

@@ -17,12 +17,18 @@ import (
 // SetupApp creates and configures the Fiber application
 func SetupApp(cfg *Config) (*fiber.App, error) {
 	// Connect to databases
-	if err := database.ConnectPostgres(cfg); err != nil {
+	if err := database.ConnectPostgres(
+		cfg.Postgres.Host,
+		cfg.Postgres.Port,
+		cfg.Postgres.User,
+		cfg.Postgres.Password,
+		cfg.Postgres.Database,
+	); err != nil {
 		LogError("Failed to connect to PostgreSQL: %v", err)
 		return nil, err
 	}
 
-	if err := database.ConnectMongoDB(cfg); err != nil {
+	if err := database.ConnectMongoDB(cfg.MongoDB.URI, cfg.MongoDB.Database); err != nil {
 		LogError("Failed to connect to MongoDB: %v", err)
 		return nil, err
 	}

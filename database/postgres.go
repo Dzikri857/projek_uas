@@ -4,20 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"projek_uas/config"
 
 	_ "github.com/lib/pq"
 )
 
 var PostgresDB *sql.DB
 
-func ConnectPostgres(cfg *config.Config) error {
+func ConnectPostgres(host, port, user, password, dbname string) error {
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Postgres.Host,
-		cfg.Postgres.Port,
-		cfg.Postgres.User,
-		cfg.Postgres.Password,
-		cfg.Postgres.Database,
+		host, port, user, password, dbname,
 	)
 
 	db, err := sql.Open("postgres", connStr)
