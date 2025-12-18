@@ -2,8 +2,8 @@ package service
 
 import (
 	"errors"
-	"projek_uas/model"
-	"projek_uas/repository"
+	"projek_uas/app/model"
+	"projek_uas/app/repository"
 )
 
 type AchievementService struct {

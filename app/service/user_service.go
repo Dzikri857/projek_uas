@@ -2,9 +2,9 @@ package service
 
 import (
 	"errors"
+	"projek_uas/app/model"
+	"projek_uas/app/repository"
 	"projek_uas/helper"
-	"projek_uas/model"
-	"projek_uas/repository"
 )
 
 type UserService struct {

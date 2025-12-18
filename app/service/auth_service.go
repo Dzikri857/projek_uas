@@ -2,22 +2,27 @@ package service
 
 import (
 	"errors"
-	"projek_uas/config"
-	"projek_uas/helper"
 	"projek_uas/app/model"
 	"projek_uas/app/repository"
+	"projek_uas/helper"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 )
 
 type AuthService struct {
-	userRepo *repository.UserRepository
-	cfg      *config.Config
+	userRepo      *repository.UserRepository
+	jwtSecret     string
+	jwtExpiration time.Duration
+	jwtRefreshExp time.Duration
 }
 
-func NewAuthService(userRepo *repository.UserRepository, cfg *config.Config) *AuthService {
+func NewAuthService(userRepo *repository.UserRepository, jwtSecret string, jwtExpiration, jwtRefreshExp time.Duration) *AuthService {
 	return &AuthService{
-		userRepo: userRepo,
-		cfg:      cfg,
+		userRepo:      userRepo,
+		jwtSecret:     jwtSecret,
+		jwtExpiration: jwtExpiration,
+		jwtRefreshExp: jwtRefreshExp,
 	}
 }
 
@@ -46,13 +51,12 @@ func (s *AuthService) Login(req *model.LoginRequest) (*model.LoginResponse, erro
 	}
 	user.Permissions = permissions
 
-	// Generate tokens
-	token, err := helper.GenerateToken(user, s.cfg)
+	token, err := helper.GenerateToken(user, s.jwtSecret, s.jwtExpiration)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := helper.GenerateRefreshToken(user, s.cfg)
+	refreshToken, err := helper.GenerateRefreshToken(user, s.jwtSecret, s.jwtRefreshExp)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +88,7 @@ func (s *AuthService) GetProfile(userID string) (*model.User, error) {
 }
 
 func (s *AuthService) RefreshToken(oldRefreshToken string) (*model.LoginResponse, error) {
-	claims, err := helper.ValidateToken(oldRefreshToken, s.cfg)
+	claims, err := helper.ValidateToken(oldRefreshToken, s.jwtSecret)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
 	}
@@ -104,12 +108,12 @@ func (s *AuthService) RefreshToken(oldRefreshToken string) (*model.LoginResponse
 	}
 	user.Permissions = permissions
 
-	token, err := helper.GenerateToken(user, s.cfg)
+	token, err := helper.GenerateToken(user, s.jwtSecret, s.jwtExpiration)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := helper.GenerateRefreshToken(user, s.cfg)
+	refreshToken, err := helper.GenerateRefreshToken(user, s.jwtSecret, s.jwtRefreshExp)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +147,7 @@ func (s *AuthService) HandleLoginHTTP(c *fiber.Ctx) error {
 		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	resp, err := s.HandleLogin(&req)
+	resp, err := s.Login(&req)
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusUnauthorized, err.Error())
 	}
@@ -154,7 +158,7 @@ func (s *AuthService) HandleLoginHTTP(c *fiber.Ctx) error {
 func (s *AuthService) HandleGetProfileHTTP(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
 
-	user, err := s.HandleGetProfile(userID)
+	user, err := s.GetProfile(userID)
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusNotFound, err.Error())
 	}
@@ -168,7 +172,7 @@ func (s *AuthService) HandleRefreshTokenHTTP(c *fiber.Ctx) error {
 		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	resp, err := s.HandleRefreshToken(req.RefreshToken)
+	resp, err := s.RefreshToken(req.RefreshToken)
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusUnauthorized, err.Error())
 	}
@@ -177,8 +181,5 @@ func (s *AuthService) HandleRefreshTokenHTTP(c *fiber.Ctx) error {
 }
 
 func (s *AuthService) HandleLogoutHTTP(c *fiber.Ctx) error {
-	if err := s.HandleLogout(); err != nil {
-		return helper.ErrorResponse(c, fiber.StatusInternalServerError, err.Error())
-	}
 	return helper.SuccessResponse(c, "Logout successful", nil)
 }

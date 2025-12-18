@@ -2,8 +2,8 @@ package repository
 
 import (
 	"database/sql"
+	"projek_uas/app/model" // Fixed import path to use app/model
 	"projek_uas/database"
-	"projek_uas/model"
 )
 
 type StudentRepository struct{}

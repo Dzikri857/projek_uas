@@ -4,7 +4,6 @@ import (
 	"projek_uas/app/repository"
 	"projek_uas/app/service"
 	"projek_uas/database"
-	"projek_uas/middleware"
 	"projek_uas/route"
 
 	"github.com/gofiber/fiber/v2"
@@ -39,8 +38,7 @@ func SetupApp(cfg *Config) (*fiber.App, error) {
 	lecturerRepo := repository.NewLecturerRepository()
 	achievementRepo := repository.NewAchievementRepository()
 
-	// Initialize services
-	authService := service.NewAuthService(userRepo, cfg)
+	authService := service.NewAuthService(userRepo, cfg.JWT.Secret, cfg.JWT.Expiration, cfg.JWT.RefreshExpiration)
 
 	// Create Fiber app
 	fiberApp := fiber.New(fiber.Config{
@@ -61,7 +59,7 @@ func SetupApp(cfg *Config) (*fiber.App, error) {
 	RegisterMiddleware(fiberApp)
 
 	// Register routes
-	route.Setup(fiberApp, cfg, authService, userRepo, achievementRepo, studentRepo, lecturerRepo)
+	route.Setup(fiberApp, cfg.JWT.Secret, authService, userRepo, achievementRepo, studentRepo, lecturerRepo)
 
 	LogInfo("Application setup completed successfully")
 	return fiberApp, nil
@@ -74,7 +72,7 @@ func RegisterMiddleware(fiberApp *fiber.App) {
 		AllowOrigins:     "*",
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
-		AllowCredentials: true,
+		AllowCredentials: false,
 	}))
 
 	// Helmet middleware for security headers

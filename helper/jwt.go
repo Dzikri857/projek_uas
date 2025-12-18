@@ -3,7 +3,6 @@ package helper
 import (
 	"errors"
 	"projek_uas/app/model"
-	"projek_uas/config"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -18,7 +17,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(user *model.User, cfg *config.Config) (string, error) {
+func GenerateToken(user *model.User, jwtSecret string, expiration time.Duration) (string, error) {
 	claims := &Claims{
 		UserID:      user.ID,
 		Username:    user.Username,
@@ -26,32 +25,32 @@ func GenerateToken(user *model.User, cfg *config.Config) (string, error) {
 		RoleName:    user.RoleName,
 		Permissions: user.Permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(cfg.JWT.Expiration)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(cfg.JWT.Secret))
+	return token.SignedString([]byte(jwtSecret))
 }
 
-func GenerateRefreshToken(user *model.User, cfg *config.Config) (string, error) {
+func GenerateRefreshToken(user *model.User, jwtSecret string, refreshExpiration time.Duration) (string, error) {
 	claims := &Claims{
 		UserID:   user.ID,
 		Username: user.Username,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(cfg.JWT.RefreshExpiration)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(refreshExpiration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(cfg.JWT.Secret))
+	return token.SignedString([]byte(jwtSecret))
 }
 
-func ValidateToken(tokenString string, cfg *config.Config) (*Claims, error) {
+func ValidateToken(tokenString string, jwtSecret string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(cfg.JWT.Secret), nil
+		return []byte(jwtSecret), nil
 	})
 
 	if err != nil {

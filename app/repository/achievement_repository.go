@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"time"
 
+	"projek_uas/app/model"
+	"projek_uas/database"
+	"projek_uas/helper"
+
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"projek_uas/database"
-	"projek_uas/helper"
-	"projek_uas/app/model"
 )
 
 type AchievementRepository struct{}
@@ -71,12 +71,12 @@ func (r *AchievementRepository) UpdateMongo(id string, achievement *model.Achiev
 
 	update := bson.M{
 		"$set": bson.M{
-			"title":           achievement.Title,
-			"description":     achievement.Description,
-			"details":         achievement.Details,
-			"tags":            achievement.Tags,
-			"points":          achievement.Points,
-			"updatedAt":       achievement.UpdatedAt,
+			"title":       achievement.Title,
+			"description": achievement.Description,
+			"details":     achievement.Details,
+			"tags":        achievement.Tags,
+			"points":      achievement.Points,
+			"updatedAt":   achievement.UpdatedAt,
 		},
 	}
 
@@ -255,8 +255,8 @@ func (r *AchievementRepository) GetStatistics(studentIDs []string) (map[string]i
 	// Count by type
 	pipeline = append(pipeline, bson.M{
 		"$group": bson.M{
-			"_id":   "$achievementType",
-			"count": bson.M{"$sum": 1},
+			"_id":         "$achievementType",
+			"count":       bson.M{"$sum": 1},
 			"totalPoints": bson.M{"$sum": "$points"},
 		},
 	})

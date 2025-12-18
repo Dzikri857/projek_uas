@@ -3,7 +3,6 @@ package route
 import (
 	"projek_uas/app/repository"
 	"projek_uas/app/service"
-	"projek_uas/config"
 	"projek_uas/middleware"
 
 	"github.com/gofiber/fiber/v2"
@@ -11,7 +10,7 @@ import (
 
 func Setup(
 	fiberApp *fiber.App,
-	cfg *config.Config,
+	jwtSecret string,
 	authService *service.AuthService,
 	userRepo *repository.UserRepository,
 	achievementRepo *repository.AchievementRepository,
@@ -26,11 +25,11 @@ func Setup(
 	auth.Post("/refresh", authService.HandleRefreshTokenHTTP)
 
 	// Protected routes
-	auth.Get("/profile", middleware.AuthMiddleware(cfg), authService.HandleGetProfileHTTP)
-	auth.Post("/logout", middleware.AuthMiddleware(cfg), authService.HandleLogoutHTTP)
+	auth.Get("/profile", middleware.AuthMiddleware(jwtSecret), authService.HandleGetProfileHTTP)
+	auth.Post("/logout", middleware.AuthMiddleware(jwtSecret), authService.HandleLogoutHTTP)
 
 	// User management (Admin only)
-	users := api.Group("/users", middleware.AuthMiddleware(cfg), middleware.RequirePermission("user:manage"))
+	users := api.Group("/users", middleware.AuthMiddleware(jwtSecret), middleware.RequirePermission("user:manage"))
 	users.Get("/", userRepo.HandleGetAllHTTP)
 	users.Get("/:id", userRepo.HandleGetByIDHTTP)
 	users.Post("/", func(c *fiber.Ctx) error {
@@ -40,7 +39,7 @@ func Setup(
 	users.Delete("/:id", userRepo.HandleDeleteHTTP)
 
 	// Achievements
-	achievements := api.Group("/achievements", middleware.AuthMiddleware(cfg))
+	achievements := api.Group("/achievements", middleware.AuthMiddleware(jwtSecret))
 	achievements.Get("/", func(c *fiber.Ctx) error {
 		return achievementRepo.HandleGetAllHTTP(c, studentRepo, lecturerRepo)
 	})
@@ -62,7 +61,7 @@ func Setup(
 	achievements.Post("/:id/verify", middleware.RequirePermission("achievement:verify"), achievementRepo.HandleVerifyHTTP)
 
 	// Reports
-	reports := api.Group("/reports", middleware.AuthMiddleware(cfg))
+	reports := api.Group("/reports", middleware.AuthMiddleware(jwtSecret))
 	reports.Get("/statistics", func(c *fiber.Ctx) error {
 		return achievementRepo.HandleStatisticsHTTP(c, studentRepo, lecturerRepo)
 	})

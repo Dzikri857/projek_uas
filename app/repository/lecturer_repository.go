@@ -2,8 +2,8 @@ package repository
 
 import (
 	"database/sql"
+	"projek_uas/app/model" // fixed import path from projek_uas/model to projek_uas/app/model
 	"projek_uas/database"
-	"projek_uas/model"
 )
 
 type LecturerRepository struct{}

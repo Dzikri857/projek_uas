@@ -1,14 +1,13 @@
 package middleware
 
 import (
-	"projek_uas/config"
 	"projek_uas/helper"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func AuthMiddleware(cfg *config.Config) fiber.Handler {
+func AuthMiddleware(jwtSecret string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
@@ -16,7 +15,7 @@ func AuthMiddleware(cfg *config.Config) fiber.Handler {
 		}
 
 		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
-		claims, err := helper.ValidateToken(tokenString, cfg)
+		claims, err := helper.ValidateToken(tokenString, jwtSecret)
 		if err != nil {
 			return helper.ErrorResponse(c, fiber.StatusUnauthorized, "Invalid token")
 		}
