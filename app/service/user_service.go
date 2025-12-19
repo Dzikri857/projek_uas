@@ -133,5 +133,13 @@ func (s *UserService) DeleteUser(id string) error {
 		return errors.New("user not found")
 	}
 
-	return s.userRepo.Delete(id)
+	return s.userRepo.SoftDelete(id)
+}
+
+func (s *UserService) HardDeleteUser(id string) error {
+	return s.userRepo.HardDelete(id)
+}
+
+func (s *UserService) RestoreUser(id string) error {
+	return s.userRepo.Restore(id)
 }

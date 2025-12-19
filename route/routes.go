@@ -37,6 +37,8 @@ func Setup(
 	})
 	users.Put("/:id", userRepo.HandleUpdateHTTP)
 	users.Delete("/:id", userRepo.HandleDeleteHTTP)
+	users.Delete("/:id/permanent", userRepo.HandleHardDeleteHTTP)
+	users.Post("/:id/restore", userRepo.HandleRestoreHTTP)
 
 	// Achievements
 	achievements := api.Group("/achievements", middleware.AuthMiddleware(jwtSecret))

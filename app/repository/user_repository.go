@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"projek_uas/app/model"
 	"projek_uas/database"
 	"projek_uas/helper"
-	"projek_uas/app/model"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type UserRepository struct{}
@@ -34,14 +35,14 @@ func (r *UserRepository) FindByUsername(username string) (*model.User, error) {
 	user := &model.User{}
 	query := `
 		SELECT u.id, u.username, u.email, u.password_hash, u.full_name, u.role_id, u.is_active,
-		       u.created_at, u.updated_at, r.name as role_name
+		       u.created_at, u.updated_at, u.deleted_at, r.name as role_name
 		FROM users u
 		LEFT JOIN roles r ON u.role_id = r.id
-		WHERE u.username = $1
+		WHERE u.username = $1 AND u.deleted_at IS NULL
 	`
 	err := database.PostgresDB.QueryRow(query, username).Scan(
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.FullName,
-		&user.RoleID, &user.IsActive, &user.CreatedAt, &user.UpdatedAt, &user.RoleName,
+		&user.RoleID, &user.IsActive, &user.CreatedAt, &user.UpdatedAt, &user.DeletedAt, &user.RoleName,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -53,14 +54,14 @@ func (r *UserRepository) FindByID(id string) (*model.User, error) {
 	user := &model.User{}
 	query := `
 		SELECT u.id, u.username, u.email, u.full_name, u.role_id, u.is_active,
-		       u.created_at, u.updated_at, r.name as role_name
+		       u.created_at, u.updated_at, u.deleted_at, r.name as role_name
 		FROM users u
 		LEFT JOIN roles r ON u.role_id = r.id
-		WHERE u.id = $1
+		WHERE u.id = $1 AND u.deleted_at IS NULL
 	`
 	err := database.PostgresDB.QueryRow(query, id).Scan(
 		&user.ID, &user.Username, &user.Email, &user.FullName, &user.RoleID,
-		&user.IsActive, &user.CreatedAt, &user.UpdatedAt, &user.RoleName,
+		&user.IsActive, &user.CreatedAt, &user.UpdatedAt, &user.DeletedAt, &user.RoleName,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -97,9 +98,10 @@ func (r *UserRepository) GetUserPermissions(userID string) ([]string, error) {
 func (r *UserRepository) GetAll(limit, offset int) ([]*model.User, int64, error) {
 	query := `
 		SELECT u.id, u.username, u.email, u.full_name, u.role_id, u.is_active,
-		       u.created_at, u.updated_at, r.name as role_name
+		       u.created_at, u.updated_at, u.deleted_at, r.name as role_name
 		FROM users u
 		LEFT JOIN roles r ON u.role_id = r.id
+		WHERE u.deleted_at IS NULL
 		ORDER BY u.created_at DESC
 		LIMIT $1 OFFSET $2
 	`
@@ -114,7 +116,7 @@ func (r *UserRepository) GetAll(limit, offset int) ([]*model.User, int64, error)
 		user := &model.User{}
 		err := rows.Scan(
 			&user.ID, &user.Username, &user.Email, &user.FullName, &user.RoleID,
-			&user.IsActive, &user.CreatedAt, &user.UpdatedAt, &user.RoleName,
+			&user.IsActive, &user.CreatedAt, &user.UpdatedAt, &user.DeletedAt, &user.RoleName,
 		)
 		if err != nil {
 			return nil, 0, err
@@ -123,7 +125,7 @@ func (r *UserRepository) GetAll(limit, offset int) ([]*model.User, int64, error)
 	}
 
 	var total int64
-	err = database.PostgresDB.QueryRow("SELECT COUNT(*) FROM users").Scan(&total)
+	err = database.PostgresDB.QueryRow("SELECT COUNT(*) FROM users WHERE deleted_at IS NULL").Scan(&total)
 	return users, total, err
 }
 
@@ -134,15 +136,75 @@ func (r *UserRepository) Update(id string, req *model.UpdateUserRequest) error {
 		    full_name = COALESCE(NULLIF($2, ''), full_name),
 		    is_active = COALESCE($3, is_active),
 		    updated_at = $4
-		WHERE id = $5
+		WHERE id = $5 AND deleted_at IS NULL
 	`
 	_, err := database.PostgresDB.Exec(query, req.Email, req.FullName, req.IsActive, time.Now(), id)
 	return err
 }
 
-func (r *UserRepository) Delete(id string) error {
-	_, err := database.PostgresDB.Exec("DELETE FROM users WHERE id = $1", id)
-	return err
+func (r *UserRepository) SoftDelete(id string) error {
+	query := `
+		UPDATE users
+		SET deleted_at = $1, updated_at = $1
+		WHERE id = $2 AND deleted_at IS NULL
+	`
+	result, err := database.PostgresDB.Exec(query, time.Now(), id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("user not found or already deleted")
+	}
+
+	return nil
+}
+
+func (r *UserRepository) HardDelete(id string) error {
+	query := "DELETE FROM users WHERE id = $1"
+	result, err := database.PostgresDB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
+}
+
+func (r *UserRepository) Restore(id string) error {
+	query := `
+		UPDATE users
+		SET deleted_at = NULL, updated_at = $1
+		WHERE id = $2 AND deleted_at IS NOT NULL
+	`
+	result, err := database.PostgresDB.Exec(query, time.Now(), id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("user not found or not deleted")
+	}
+
+	return nil
 }
 
 func (r *UserRepository) GetRoleByName(roleName string) (*model.Role, error) {
@@ -260,7 +322,26 @@ func (r *UserRepository) HandleDelete(id string) error {
 		return errors.New("user not found")
 	}
 
-	return r.Delete(id)
+	return r.SoftDelete(id)
+}
+
+func (r *UserRepository) HandleHardDelete(id string) error {
+	// Check if user exists (including soft deleted)
+	query := "SELECT id FROM users WHERE id = $1"
+	var userID string
+	err := database.PostgresDB.QueryRow(query, id).Scan(&userID)
+	if err == sql.ErrNoRows {
+		return errors.New("user not found")
+	}
+	if err != nil {
+		return err
+	}
+
+	return r.HardDelete(id)
+}
+
+func (r *UserRepository) HandleRestore(id string) error {
+	return r.Restore(id)
 }
 
 func (r *UserRepository) HandleCreateHTTP(c *fiber.Ctx, studentRepo *StudentRepository, lecturerRepo *LecturerRepository) error {
@@ -322,5 +403,25 @@ func (r *UserRepository) HandleDeleteHTTP(c *fiber.Ctx) error {
 		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	return helper.SuccessResponse(c, "User deleted successfully", nil)
+	return helper.SuccessResponse(c, "User deleted successfully (soft delete)", nil)
+}
+
+func (r *UserRepository) HandleHardDeleteHTTP(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	if err := r.HandleHardDelete(id); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "User permanently deleted", nil)
+}
+
+func (r *UserRepository) HandleRestoreHTTP(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	if err := r.HandleRestore(id); err != nil {
+		return helper.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return helper.SuccessResponse(c, "User restored successfully", nil)
 }

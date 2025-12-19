@@ -13,6 +13,7 @@ import (
 	"projek_uas/helper"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/lib/pq"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -138,7 +139,7 @@ func (r *AchievementRepository) GetReferences(studentIDs []string, status string
 			FROM achievement_references
 			WHERE student_id = ANY($1)
 		`
-		args = append(args, studentIDs)
+		args = append(args, pq.Array(studentIDs))
 		argIndex++
 	} else {
 		query = `
@@ -178,12 +179,11 @@ func (r *AchievementRepository) GetReferences(studentIDs []string, status string
 		refs = append(refs, ref)
 	}
 
-	// Count total
 	var countQuery string
 	var countArgs []interface{}
 	if len(studentIDs) > 0 {
 		countQuery = "SELECT COUNT(*) FROM achievement_references WHERE student_id = ANY($1)"
-		countArgs = append(countArgs, studentIDs)
+		countArgs = append(countArgs, pq.Array(studentIDs))
 		if status != "" {
 			countQuery += " AND status = $2"
 			countArgs = append(countArgs, status)
@@ -241,7 +241,6 @@ func (r *AchievementRepository) GetStatistics(studentIDs []string) (map[string]i
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Build match stage
 	matchStage := bson.M{}
 	if len(studentIDs) > 0 {
 		matchStage["studentId"] = bson.M{"$in": studentIDs}
@@ -252,7 +251,6 @@ func (r *AchievementRepository) GetStatistics(studentIDs []string) (map[string]i
 		pipeline = append(pipeline, bson.M{"$match": matchStage})
 	}
 
-	// Count by type
 	pipeline = append(pipeline, bson.M{
 		"$group": bson.M{
 			"_id":         "$achievementType",
